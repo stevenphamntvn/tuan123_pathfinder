@@ -1,6 +1,5 @@
 # file: app.py
-# Phiên bản hoàn chỉnh cho dự án "Tuấn 123 Pathfinder"
-# Sẵn sàng để triển khai online, đã sửa lỗi và tích hợp các tính năng.
+# Phiên bản hoàn chỉnh: Giao diện tinh gọn, hiển thị chi phí ở góc trái.
 
 # --- PHẦN SỬA LỖI QUAN TRỌNG CHO STREAMLIT CLOUD ---
 # Ba dòng này phải nằm ở ngay đầu file
@@ -23,10 +22,9 @@ import time
 GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU' # !!! THAY API KEY CỦA BẠN VÀO ĐÂY !!!
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
-# !!! ĐÃ CẬP NHẬT LINK GOOGLE DRIVE CỦA BẠN VÀO ĐÂY
+# !!! QUAN TRỌNG: Dán đường dẫn tải trực tiếp file zip của bạn vào đây
 DB_ZIP_URL = "https://drive.google.com/uc?export=download&id=1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG"
-# --- ĐÃ BỎ TIỀN TỐ "yhct_" ---
-DB_PATH = 'chroma_db' 
+DB_PATH = 'chroma_db'
 COLLECTION_NAME = 'tuan123_collection'
 
 # --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
@@ -69,15 +67,12 @@ def setup_database():
             with st.spinner('Đang giải nén...'):
                 with zipfile.ZipFile(BytesIO(response.content)) as z:
                     z.extractall('.')
-            
-            # *** SỬA LỖI VÒNG LẶP: Thay thế st.rerun() bằng thông báo và chờ đợi ***
             st.success("Thiết lập database thành công! Vui lòng làm mới (refresh) trang sau vài giây.")
-            time.sleep(5) # Cho hệ thống file có thời gian ổn định
+            time.sleep(5)
             
         except Exception as e:
             st.error(f"Lỗi khi tải hoặc giải nén database: {e}")
             return False
-            
     return True
 
 # --- KHỞI TẠO DATABASE ---
@@ -89,7 +84,7 @@ def load_db():
         collection = client.get_collection(name=COLLECTION_NAME)
         return collection
     except Exception as e:
-        st.error(f"Lỗi kết nối database: {e}. Đảm bảo tên Collection trong app.py và 3.index_data.py khớp nhau.")
+        st.error(f"Lỗi kết nối database: {e}")
         return None
 
 # --- HÀM LOGIC XỬ LÝ CÂU HỎI ---
@@ -189,14 +184,14 @@ if setup_database():
                         st.session_state.total_session_cost_vnd += usage_info['cost_vnd']
             
             st.session_state.messages.append({"role": "assistant", "content": response_text})
-            # Giao diện sẽ tự cập nhật khi state thay đổi
-            
+            st.rerun()
+
     # Hiển thị tổng chi phí ở góc dưới bên trái
     total_cost_display = f"""
     <div style="
         position: fixed;
         bottom: 10px;
-        left: 10px; /* Đã đổi từ right sang left */
+        left: 10px;
         background-color: #f0f2f6;
         padding: 5px 10px;
         border-radius: 5px;
