@@ -1,5 +1,6 @@
 # file: app.py
-# Phiên bản hoàn chỉnh: Giao diện tinh gọn, ẩn chi tiết API, hiển thị tổng chi phí ở góc phải.
+# Phiên bản hoàn chỉnh cho dự án "Tuấn 123 Pathfinder"
+# Sẵn sàng để triển khai online, đã sửa lỗi và tích hợp các tính năng.
 
 # --- PHẦN SỬA LỖI QUAN TRỌNG CHO STREAMLIT CLOUD ---
 # Ba dòng này phải nằm ở ngay đầu file
@@ -15,16 +16,18 @@ import os
 import requests
 import zipfile
 from io import BytesIO
+import time
 
 # --- PHẦN CẤU HÌNH ---
 # API Key của bạn từ Google Cloud
 GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU' # !!! THAY API KEY CỦA BẠN VÀO ĐÂY !!!
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
-# !!! QUAN TRỌNG: Dán đường dẫn tải trực tiếp file zip của bạn vào đây
+# !!! ĐÃ CẬP NHẬT LINK GOOGLE DRIVE CỦA BẠN VÀO ĐÂY
 DB_ZIP_URL = "https://drive.google.com/uc?export=download&id=1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG"
-DB_PATH = 'yhct_chroma_db'
-COLLECTION_NAME = 'yhct_collection'
+# --- ĐÃ BỎ TIỀN TỐ "yhct_" ---
+DB_PATH = 'chroma_db' 
+COLLECTION_NAME = 'tuan123_collection'
 
 # --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
 MODEL_PRICING = {
@@ -40,10 +43,10 @@ MODEL_PRICING = {
 MODEL_OPTIONS = list(MODEL_PRICING.keys())
 
 # --- TỶ GIÁ VÀ CÁC VAI TRÒ (PERSONA) CHO AI ---
-USD_TO_VND_RATE = 25500  # Tỷ giá USD/VND (bạn có thể cập nhật)
+USD_TO_VND_RATE = 25500
 PERSONAS = {
-    "Lương y già": "Bạn là một lương y già, uyên bác và có giọng văn hoài cổ. Hãy dùng các từ ngữ xưa và xưng hô là 'lão phu'.",
-    "Lương y trẻ": "Bạn là một người bạn thân thiện, giải thích các khái niệm y học một cách đơn giản, dễ hiểu như đang nói chuyện với người không có chuyên môn."
+    "Tướng quân Chỉ đạo": "Bạn là một Tướng quân của Tuấn 123, đưa ra các chỉ dẫn, quy trình một cách dứt khoát, rõ ràng và đầy năng lượng. Luôn xưng là 'tôi' và gọi người dùng là 'anh em'.",
+    "Chuyên gia Đào tạo": "Bạn là một chuyên gia đào tạo thân thiện của Tuấn 123, giải thích các tình huống, kỹ năng cho chuyên viên, chuyên gia một cách chi tiết, dễ hiểu, kèm theo ví dụ thực tế. Luôn xưng là 'tôi' và gọi người dùng là 'bạn'."
 }
 PERSONA_OPTIONS = list(PERSONAS.keys())
 
@@ -66,11 +69,15 @@ def setup_database():
             with st.spinner('Đang giải nén...'):
                 with zipfile.ZipFile(BytesIO(response.content)) as z:
                     z.extractall('.')
-            st.success("Thiết lập database thành công! Đang tải lại...")
-            st.rerun()
+            
+            # *** SỬA LỖI VÒNG LẶP: Thay thế st.rerun() bằng thông báo và chờ đợi ***
+            st.success("Thiết lập database thành công! Vui lòng làm mới (refresh) trang sau vài giây.")
+            time.sleep(5) # Cho hệ thống file có thời gian ổn định
+            
         except Exception as e:
             st.error(f"Lỗi khi tải hoặc giải nén database: {e}")
             return False
+            
     return True
 
 # --- KHỞI TẠO DATABASE ---
@@ -82,7 +89,7 @@ def load_db():
         collection = client.get_collection(name=COLLECTION_NAME)
         return collection
     except Exception as e:
-        st.error(f"Lỗi kết nối database: {e}")
+        st.error(f"Lỗi kết nối database: {e}. Đảm bảo tên Collection trong app.py và 3.index_data.py khớp nhau.")
         return None
 
 # --- HÀM LOGIC XỬ LÝ CÂU HỎI ---
@@ -122,8 +129,8 @@ def get_ai_response(question, model, collection, model_name, system_instruction)
     return response.text, usage_info
 
 # --- GIAO DIỆN NGƯỜI DÙNG STREAMLIT ---
-st.set_page_config(page_title="Trợ lý Y học Cổ truyền", page_icon="🌿")
-st.title("🌿 Trợ lý Y học Cổ truyền")
+st.set_page_config(page_title="Pathfinder - Trợ lý Tuấn 123", page_icon="🧭")
+st.title("🧭 Pathfinder - Trợ lý Tuấn 123")
 
 # Khởi tạo tổng chi phí trong session state
 if 'total_session_cost_vnd' not in st.session_state:
@@ -139,9 +146,9 @@ with st.sidebar:
     )
     
     selected_persona_name = st.selectbox(
-        "Chọn phong cách trả lời:",
+        "Chọn vai trò của AI:",
         options=PERSONA_OPTIONS,
-        index=1 # Mặc định chọn "Lương y trẻ"
+        index=0
     )
     system_instruction = PERSONAS[selected_persona_name]
     
@@ -167,28 +174,24 @@ if setup_database():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        if prompt := st.chat_input("Ví dụ: Bệnh Thái Dương là gì?"):
+        if prompt := st.chat_input("Nhập câu hỏi của bạn..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
 
             with st.chat_message("assistant"):
-                with st.spinner(f"AI ({selected_model_name}) đang suy nghĩ..."):
+                with st.spinner(f"Pathfinder ({selected_model_name}) đang suy nghĩ..."):
                     response_text, usage_info = get_ai_response(prompt, llm_model, collection, selected_model_name, system_instruction)
                     
-                    # Chỉ hiển thị câu trả lời, không hiển thị nguồn
                     st.markdown(response_text)
                     
                     if usage_info:
-                        # Cập nhật tổng chi phí
                         st.session_state.total_session_cost_vnd += usage_info['cost_vnd']
             
-            # Lưu câu trả lời vào lịch sử chat
             st.session_state.messages.append({"role": "assistant", "content": response_text})
+            # *** SỬA LỖI VÒNG LẶP: Xóa st.rerun() ở đây ***
+            # Giao diện sẽ tự cập nhật khi state thay đổi
             
-            # Chạy lại để cập nhật tổng chi phí
-            st.rerun()
-
     # Hiển thị tổng chi phí ở góc dưới bên trái
     total_cost_display = f"""
     <div style="
@@ -207,3 +210,4 @@ if setup_database():
     </div>
     """
     st.markdown(total_cost_display, unsafe_allow_html=True)
+
