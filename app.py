@@ -189,7 +189,6 @@ if setup_database():
                         st.session_state.total_session_cost_vnd += usage_info['cost_vnd']
             
             st.session_state.messages.append({"role": "assistant", "content": response_text})
-            # *** SỬA LỖI VÒNG LẶP: Xóa st.rerun() ở đây ***
             # Giao diện sẽ tự cập nhật khi state thay đổi
             
     # Hiển thị tổng chi phí ở góc dưới bên trái
@@ -197,7 +196,7 @@ if setup_database():
     <div style="
         position: fixed;
         bottom: 10px;
-        left: 10px;
+        left: 10px; /* Đã đổi từ right sang left */
         background-color: #f0f2f6;
         padding: 5px 10px;
         border-radius: 5px;
@@ -210,4 +209,3 @@ if setup_database():
     </div>
     """
     st.markdown(total_cost_display, unsafe_allow_html=True)
-
