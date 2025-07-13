@@ -1,0 +1,10 @@
+streamlit
+chromadb
+google-generativeai
+requests
+pdfplumber
+python-docx
+pydocx
+pandas
+openpyxl
+pysqlite3-binary
