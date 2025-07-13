@@ -1,6 +1,5 @@
 # file: app.py
-# Phiên bản hoàn chỉnh cho dự án "Tuấn 123 Pathfinder"
-# Sẵn sàng để triển khai online, đã sửa lỗi và tích hợp các tính năng.
+# Phiên bản hoàn chỉnh: Giao diện tinh gọn, ẩn chi tiết API, hiển thị tổng chi phí ở góc phải.
 
 # --- PHẦN SỬA LỖI QUAN TRỌNG CHO STREAMLIT CLOUD ---
 # Ba dòng này phải nằm ở ngay đầu file
@@ -22,10 +21,10 @@ from io import BytesIO
 GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU' # !!! THAY API KEY CỦA BẠN VÀO ĐÂY !!!
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
-# !!! ĐÃ CẬP NHẬT LINK GOOGLE DRIVE CỦA BẠN VÀO ĐÂY
+# !!! QUAN TRỌNG: Dán đường dẫn tải trực tiếp file zip của bạn vào đây
 DB_ZIP_URL = "https://drive.google.com/uc?export=download&id=1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG"
-DB_PATH = 'chroma_db' # Tên thư mục database sau khi giải nén
-COLLECTION_NAME = 'tuan123_collection' # Tên collection bạn đã tạo ở bước 3
+DB_PATH = 'yhct_chroma_db'
+COLLECTION_NAME = 'yhct_collection'
 
 # --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
 MODEL_PRICING = {
@@ -41,10 +40,10 @@ MODEL_PRICING = {
 MODEL_OPTIONS = list(MODEL_PRICING.keys())
 
 # --- TỶ GIÁ VÀ CÁC VAI TRÒ (PERSONA) CHO AI ---
-USD_TO_VND_RATE = 25500
+USD_TO_VND_RATE = 25500  # Tỷ giá USD/VND (bạn có thể cập nhật)
 PERSONAS = {
-    "Tướng quân Chỉ đạo": "Bạn là một Tướng quân của Tuấn 123, đưa ra các chỉ dẫn, quy trình một cách dứt khoát, rõ ràng và đầy năng lượng. Luôn xưng là 'tôi' và gọi người dùng là 'anh em'.",
-    "Chuyên gia Đào tạo": "Bạn là một chuyên gia đào tạo thân thiện của Tuấn 123, giải thích các tình huống, kỹ năng cho chuyên viên, chuyên gia một cách chi tiết, dễ hiểu, kèm theo ví dụ thực tế. Luôn xưng là 'tôi' và gọi người dùng là 'bạn'."
+    "Lương y già": "Bạn là một lương y già, uyên bác và có giọng văn hoài cổ. Hãy dùng các từ ngữ xưa và xưng hô là 'lão phu'.",
+    "Lương y trẻ": "Bạn là một người bạn thân thiện, giải thích các khái niệm y học một cách đơn giản, dễ hiểu như đang nói chuyện với người không có chuyên môn."
 }
 PERSONA_OPTIONS = list(PERSONAS.keys())
 
@@ -54,7 +53,7 @@ def setup_database():
     """Kiểm tra, tải về và giải nén database nếu cần."""
     if not os.path.exists(DB_PATH):
         st.info(f"Không tìm thấy database '{DB_PATH}'. Bắt đầu tải về từ cloud...")
-        st.warning("Quá trình này chỉ diễn ra một lần khi ứng dụng khởi động và có thể mất vài phút.")
+        st.warning("Quá trình này chỉ diễn ra một lần và có thể mất vài phút.")
         
         if not DB_ZIP_URL or DB_ZIP_URL == "YOUR_DIRECT_DOWNLOAD_LINK_TO_THE_DB_ZIP_FILE":
             st.error("Lỗi cấu hình: Vui lòng cung cấp DB_ZIP_URL trong file app.py.")
@@ -123,8 +122,8 @@ def get_ai_response(question, model, collection, model_name, system_instruction)
     return response.text, usage_info
 
 # --- GIAO DIỆN NGƯỜI DÙNG STREAMLIT ---
-st.set_page_config(page_title="Pathfinder - Trợ lý Tuấn 123", page_icon="🧭")
-st.title("🧭 Pathfinder - Trợ lý Tuấn 123")
+st.set_page_config(page_title="Trợ lý Y học Cổ truyền", page_icon="🌿")
+st.title("🌿 Trợ lý Y học Cổ truyền")
 
 # Khởi tạo tổng chi phí trong session state
 if 'total_session_cost_vnd' not in st.session_state:
@@ -140,9 +139,9 @@ with st.sidebar:
     )
     
     selected_persona_name = st.selectbox(
-        "Chọn vai trò của AI:",
+        "Chọn phong cách trả lời:",
         options=PERSONA_OPTIONS,
-        index=0
+        index=1 # Mặc định chọn "Lương y trẻ"
     )
     system_instruction = PERSONAS[selected_persona_name]
     
@@ -168,21 +167,26 @@ if setup_database():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        if prompt := st.chat_input("Nhập câu hỏi của bạn..."):
+        if prompt := st.chat_input("Ví dụ: Bệnh Thái Dương là gì?"):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
 
             with st.chat_message("assistant"):
-                with st.spinner(f"Pathfinder ({selected_model_name}) đang suy nghĩ..."):
+                with st.spinner(f"AI ({selected_model_name}) đang suy nghĩ..."):
                     response_text, usage_info = get_ai_response(prompt, llm_model, collection, selected_model_name, system_instruction)
                     
+                    # Chỉ hiển thị câu trả lời, không hiển thị nguồn
                     st.markdown(response_text)
                     
                     if usage_info:
+                        # Cập nhật tổng chi phí
                         st.session_state.total_session_cost_vnd += usage_info['cost_vnd']
             
+            # Lưu câu trả lời vào lịch sử chat
             st.session_state.messages.append({"role": "assistant", "content": response_text})
+            
+            # Chạy lại để cập nhật tổng chi phí
             st.rerun()
 
     # Hiển thị tổng chi phí ở góc dưới bên trái
