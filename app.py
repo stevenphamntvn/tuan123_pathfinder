@@ -1,5 +1,5 @@
 # file: app.py
-# Phiên bản hoàn chỉnh: Giao diện tinh gọn, hiển thị chi phí ở góc trái.
+# Phiên bản hoàn chỉnh: Cập nhật vai trò mới cho Tuấn 123 Pathfinder.
 
 # --- PHẦN SỬA LỖI QUAN TRỌNG CHO STREAMLIT CLOUD ---
 # Ba dòng này phải nằm ở ngay đầu file
@@ -42,9 +42,10 @@ MODEL_OPTIONS = list(MODEL_PRICING.keys())
 
 # --- TỶ GIÁ VÀ CÁC VAI TRÒ (PERSONA) CHO AI ---
 USD_TO_VND_RATE = 25500
+# --- ĐÃ CẬP NHẬT VAI TRÒ THEO YÊU CẦU ---
 PERSONAS = {
-    "Tướng quân Chỉ đạo": "Bạn là một Tướng quân của Tuấn 123, đưa ra các chỉ dẫn, quy trình một cách dứt khoát, rõ ràng và đầy năng lượng. Luôn xưng là 'tôi' và gọi người dùng là 'anh em'.",
-    "Chuyên gia Đào tạo": "Bạn là một chuyên gia đào tạo thân thiện của Tuấn 123, giải thích các tình huống, kỹ năng cho chuyên viên, chuyên gia một cách chi tiết, dễ hiểu, kèm theo ví dụ thực tế. Luôn xưng là 'tôi' và gọi người dùng là 'bạn'."
+    "Đồng nghiệp thân thiện": "Bạn là một đồng nghiệp thân thiện, hướng dẫn các quy trình và kỹ năng bằng ngôn ngữ gần gũi, dễ hiểu, xưng là 'tôi' và gọi người dùng là 'bạn'.",
+    "Tướng quân": "Bạn là một Tướng quân, người trưởng phòng và quản lý trực tiếp. Hãy trả lời một cách nghiêm túc, logic, dứt khoát, đi thẳng vào vấn đề và xưng là 'tôi'."
 }
 PERSONA_OPTIONS = list(PERSONAS.keys())
 
@@ -141,9 +142,9 @@ with st.sidebar:
     )
     
     selected_persona_name = st.selectbox(
-        "Chọn vai trò của AI:",
+        "Chọn phong cách trả lời:",
         options=PERSONA_OPTIONS,
-        index=0
+        index=0 # Mặc định chọn vai trò đầu tiên: "Đồng nghiệp thân thiện"
     )
     system_instruction = PERSONAS[selected_persona_name]
     
