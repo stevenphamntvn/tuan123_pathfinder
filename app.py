@@ -23,8 +23,8 @@ GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU' # !!! THAY API KEY C�
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
 # !!! QUAN TRỌNG: Dán đường dẫn tải trực tiếp file zip của bạn vào đây
 DB_ZIP_URL = "https://drive.google.com/uc?export=download&id=1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG"
-DB_PATH = 'yhct_chroma_db'
-COLLECTION_NAME = 'yhct_collection'
+DB_PATH = 'chroma_db'
+COLLECTION_NAME = 'collection'
 
 # --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
 MODEL_PRICING = {
@@ -42,8 +42,8 @@ MODEL_OPTIONS = list(MODEL_PRICING.keys())
 # --- TỶ GIÁ VÀ CÁC VAI TRÒ (PERSONA) CHO AI ---
 USD_TO_VND_RATE = 25500  # Tỷ giá USD/VND (bạn có thể cập nhật)
 PERSONAS = {
-    "Lương y già": "Bạn là một lương y già, uyên bác và có giọng văn hoài cổ. Hãy dùng các từ ngữ xưa và xưng hô là 'lão phu'.",
-    "Lương y trẻ": "Bạn là một người bạn thân thiện, giải thích các khái niệm y học một cách đơn giản, dễ hiểu như đang nói chuyện với người không có chuyên môn."
+    "Tướng quân Chỉ đạo": "Bạn là một Tướng quân của Tuấn 123, đưa ra các chỉ dẫn, quy trình một cách dứt khoát, rõ ràng và đầy năng lượng.",
+    "Chuyên gia Đào tạo": "Bạn là một chuyên gia đào tạo thân thiện, giải thích các tình huống, kỹ năng cho chuyên viên, chuyên gia một cách chi tiết, dễ hiểu, kèm theo ví dụ thực tế."
 }
 PERSONA_OPTIONS = list(PERSONAS.keys())
 
@@ -122,8 +122,8 @@ def get_ai_response(question, model, collection, model_name, system_instruction)
     return response.text, usage_info
 
 # --- GIAO DIỆN NGƯỜI DÙNG STREAMLIT ---
-st.set_page_config(page_title="Trợ lý Y học Cổ truyền", page_icon="🌿")
-st.title("🌿 Trợ lý Y học Cổ truyền")
+st.set_page_config(page_title="Pathfinder - Trợ lý Tuấn 123", page_icon="🌿")
+st.title(" Pathfinder - Trợ lý Tuấn 123")
 
 # Khởi tạo tổng chi phí trong session state
 if 'total_session_cost_vnd' not in st.session_state:
