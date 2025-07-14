@@ -1,5 +1,5 @@
 # file: app.py
-# Phiên bản hoàn chỉnh: Cập nhật vai trò mới cho Tuấn 123 Pathfinder.
+# Phiên bản hoàn chỉnh: Sửa lỗi tải file từ Google Drive (lỗi 403)
 
 # --- PHẦN SỬA LỖI QUAN TRỌNG CHO STREAMLIT CLOUD ---
 # Ba dòng này phải nằm ở ngay đầu file
@@ -26,18 +26,15 @@ st.set_page_config(
 
 # Sử dụng st.secrets để bảo mật API key khi triển khai online
 try:
-    # Lấy key từ Streamlit secrets (cho môi trường online)
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except (FileNotFoundError, KeyError):
-    # Dùng cho local dev nếu không có file secrets.toml
-    # !!! THAY THẾ BẰNG API KEY CỦA BẠN ĐỂ CHẠY LOCAL
-    GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY_HERE'
+    GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY_HERE' # !!! DÁN API KEY CỦA BẠN VÀO ĐÂY
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
-# !!! QUAN TRỌNG: Dán đường dẫn tải trực tiếp file zip của bạn vào đây
-DB_ZIP_URL = "https://drive.google.com/uc?export=download&id=1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG"
-DB_PATH = 'chroma_db'
-COLLECTION_NAME = 'tuan123_collection'
+# !!! THAY ĐỔI QUAN TRỌNG: Tách ID của file ra riêng
+GOOGLE_DRIVE_FILE_ID = "1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG"
+DB_PATH = 'yhct_chroma_db' # Sửa lại tên DB cho đúng
+COLLECTION_NAME = "yhct_documents" # Sửa lại tên Collection cho đúng
 
 # --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
 USD_TO_VND_RATE = 25500
@@ -50,23 +47,40 @@ MODEL_PRICING = {
 
 @st.cache_resource
 def setup_database():
-    """Tải và giải nén CSDL từ URL nếu chưa có."""
+    """Tải và giải nén CSDL từ URL nếu chưa có. Đã sửa lỗi 403."""
     if not os.path.exists(DB_PATH):
         st.info(f"Không tìm thấy CSDL tại '{DB_PATH}'. Bắt đầu tải từ Google Drive...")
+        
+        # --- LOGIC MỚI ĐỂ XỬ LÝ GOOGLE DRIVE ---
         try:
-            r = requests.get(DB_ZIP_URL, stream=True)
-            if r.status_code == 200:
-                with st.spinner("Đang tải file chroma_db.zip..."):
-                    zip_file = BytesIO(r.content)
+            url = f'https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}'
+            session = requests.Session()
+            response = session.get(url, stream=True)
+            
+            # Cố gắng lấy token xác nhận từ cookie
+            token = None
+            for key, value in response.cookies.items():
+                if key.startswith('download_warning'):
+                    token = value
+                    break
+            
+            # Nếu có token, gửi lại yêu cầu với token đó
+            if token:
+                params = {'id': GOOGLE_DRIVE_FILE_ID, 'confirm': token}
+                response = session.get(url, params=params, stream=True)
+
+            if response.status_code == 200:
+                with st.spinner("Đang tải file CSDL... (có thể mất vài phút)"):
+                    zip_file = BytesIO(response.content)
                 with st.spinner("Đang giải nén CSDL..."):
                     with zipfile.ZipFile(zip_file, 'r') as z:
                         z.extractall('.')
                 st.success("Tải và giải nén CSDL thành công!")
-                # Chờ một chút để hệ thống file ổn định
                 time.sleep(2)
             else:
-                st.error(f"Lỗi tải file: Status code {r.status_code}. Hãy kiểm tra lại đường dẫn URL.")
+                st.error(f"Lỗi tải file: Status code {response.status_code}. Hãy kiểm tra lại ID file và đảm bảo file được chia sẻ công khai.")
                 return None, None
+
         except Exception as e:
             st.error(f"Lỗi trong quá trình tải hoặc giải nén: {e}")
             return None, None
@@ -89,147 +103,82 @@ def configure_ai():
     except Exception as e:
         st.error(f"Lỗi cấu hình Google Generative AI: {e}")
 
-# --- CÁC HÀM XỬ LÝ LÕI ---
+# --- CÁC HÀM XỬ LÝ LÕI (Không đổi) ---
 
 def get_relevant_context(query, collection, n_results=5):
     """Tìm các đoạn văn bản liên quan nhất trong CSDL."""
     if collection is None:
         return []
-    results = collection.query(
-        query_texts=[query],
-        n_results=n_results
-    )
+    results = collection.query(query_texts=[query], n_results=n_results)
     return results['documents'][0] if results['documents'] else []
 
 def get_ai_response(query, model_name, collection, system_instruction):
     """Tạo câu trả lời từ AI dựa trên câu hỏi và ngữ cảnh."""
     relevant_docs = get_relevant_context(query, collection)
-    
     context_str = "\n---\n".join(relevant_docs)
-    
-    prompt = f"""{system_instruction}
-
-Dựa vào các thông tin, quy định, và kiến thức được cung cấp dưới đây để trả lời câu hỏi của người dùng một cách chính xác và chi tiết.
-
----
-{context_str}
----
-
-Câu hỏi của người dùng: {query}
-"""
+    prompt = f"""{system_instruction}\n\nDựa vào các thông tin, quy định, và kiến thức được cung cấp dưới đây để trả lời câu hỏi của người dùng một cách chính xác và chi tiết.\n\n---\n{context_str}\n---\n\nCâu hỏi của người dùng: {query}"""
     
     try:
         model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
-        
-        # Lấy thông tin sử dụng token
         usage_info = None
         if response.usage_metadata:
             usage = response.usage_metadata
             pricing = MODEL_PRICING[model_name]
-            input_cost_usd = (usage.prompt_token_count / 1_000_000) * pricing["input"]
-            output_cost_usd = (usage.candidates_token_count / 1_000_000) * pricing["output"]
-            total_cost_usd = input_cost_usd + output_cost_usd
-            total_cost_vnd = total_cost_usd * USD_TO_VND_RATE
-            
+            total_cost_usd = ((usage.prompt_token_count / 1_000_000) * pricing["input"]) + ((usage.candidates_token_count / 1_000_000) * pricing["output"])
             usage_info = {
-                "prompt_tokens": usage.prompt_token_count,
-                "response_tokens": usage.candidates_token_count,
                 "total_tokens": usage.total_token_count,
-                "cost_usd": total_cost_usd,
-                "cost_vnd": total_cost_vnd,
+                "cost_vnd": total_cost_usd * USD_TO_VND_RATE,
                 "model": model_name
             }
-        
         return response.text, usage_info
-
     except Exception as e:
         return f"Đã có lỗi xảy ra khi gọi API của Google: {e}", None
 
 # --- GIAO DIỆN NGƯỜI DÙNG (UI) ---
 
-# Khởi tạo các thành phần
 configure_ai()
 client, collection = setup_database()
 
-# Tiêu đề ứng dụng
 st.title(" Pathfinder - Trợ lý AI Tuấn 123 🤖")
 st.caption("Trợ lý được xây dựng dựa trên kho tri thức nội bộ của công ty.")
 
-# Khởi tạo session state để lưu lịch sử chat và chi phí
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "total_session_cost_vnd" not in st.session_state:
-    st.session_state.total_session_cost_vnd = 0.0
+if "messages" not in st.session_state: st.session_state.messages = []
+if "total_session_cost_vnd" not in st.session_state: st.session_state.total_session_cost_vnd = 0.0
 
-# Cấu hình sidebar
 with st.sidebar:
     st.header("Cài đặt")
-    
-    model_name_map = {
-        "Flash (Nhanh & Rẻ)": "gemini-1.5-flash-latest",
-        "Pro (Mạnh hơn)": "gemini-1.5-pro-latest"
-    }
-    selected_model_display = st.selectbox(
-        "Chọn mô hình AI:",
-        options=list(model_name_map.keys())
-    )
+    model_name_map = {"Flash (Nhanh & Rẻ)": "gemini-1.5-flash-latest", "Pro (Mạnh hơn)": "gemini-1.5-pro-latest"}
+    selected_model_display = st.selectbox("Chọn mô hình AI:", options=list(model_name_map.keys()))
     selected_model_name = model_name_map[selected_model_display]
-
-    st.subheader("Vai trò của AI")
-    system_instruction = st.text_area(
-        "Bạn muốn AI đóng vai gì?",
-        "Bạn là một Trợ lý AI am hiểu sâu sắc về các quy trình, quy định và văn hóa của công ty bất động sản Tuấn 123. Nhiệm vụ của bạn là cung cấp câu trả lời chính xác, chi tiết và chuyên nghiệp cho các nhân viên dựa trên kho tri thức được cung cấp.",
-        height=200
-    )
-
+    system_instruction = st.text_area("Vai trò của AI:", "Bạn là một Trợ lý AI am hiểu sâu sắc về các quy trình, quy định và văn hóa của công ty bất động sản Tuấn 123. Nhiệm vụ của bạn là cung cấp câu trả lời chính xác, chi tiết và chuyên nghiệp cho các nhân viên dựa trên kho tri thức được cung cấp.", height=200)
     if st.button("Xóa lịch sử trò chuyện"):
         st.session_state.messages = []
         st.session_state.total_session_cost_vnd = 0.0
         st.rerun()
-
     st.divider()
-    st.markdown(f"**Tổng chi phí phiên này:**")
+    st.markdown("**Tổng chi phí phiên này:**")
     st.markdown(f"### {st.session_state.total_session_cost_vnd:,.0f} VNĐ")
 
-
-# Giao diện chat chính
 if collection is not None:
-    # Hiển thị các tin nhắn đã có
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"], unsafe_allow_html=True)
 
     if prompt := st.chat_input("Nhập câu hỏi của bạn về quy trình, nghiệp vụ..."):
-        # Thêm câu hỏi của người dùng vào lịch sử và hiển thị
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        with st.chat_message("user"): st.markdown(prompt)
 
-        # Lấy và hiển thị câu trả lời của AI
         with st.chat_message("assistant"):
             with st.spinner(f"Pathfinder ({selected_model_display}) đang suy nghĩ..."):
                 response_text, usage_info = get_ai_response(prompt, selected_model_name, collection, system_instruction)
-                
-                # Tạo response đầy đủ bao gồm cả chi tiết sử dụng API
                 full_response_to_display = response_text
                 if usage_info:
                     st.session_state.total_session_cost_vnd += usage_info['cost_vnd']
-                    usage_html = f"""
-                    <br>
-                    <details style="font-size: 0.8em; color: grey;">
-                        <summary>Chi tiết sử dụng API</summary>
-                        <p style="margin: 0; padding-left: 1em;">- Model: {usage_info['model']}<br>
-                           - Chi phí: {usage_info['cost_vnd']:,.0f} VNĐ<br>
-                           - Tokens: {usage_info['total_tokens']}</p>
-                    </details>
-                    """
+                    usage_html = f"""<br><details style="font-size: 0.8em; color: grey;"><summary>Chi tiết</summary><p style="margin: 0; padding-left: 1em;">- Model: {usage_info['model']}<br>- Chi phí: {usage_info['cost_vnd']:,.0f} VNĐ<br>- Tokens: {usage_info['total_tokens']}</p></details>"""
                     full_response_to_display += usage_html
-
                 st.markdown(full_response_to_display, unsafe_allow_html=True)
-        
-        # Lưu câu trả lời (bao gồm cả chi tiết) vào session state
         st.session_state.messages.append({"role": "assistant", "content": full_response_to_display})
         st.rerun()
 else:
-    st.warning("CSDL không khả dụng. Vui lòng kiểm tra lại cấu hình và đảm bảo đã chạy các bước chuẩn bị dữ liệu.")
+    st.warning("CSDL không khả dụng. Vui lòng kiểm tra lại cấu hình.")
