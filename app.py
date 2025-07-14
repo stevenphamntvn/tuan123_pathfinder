@@ -28,13 +28,13 @@ st.set_page_config(
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except (FileNotFoundError, KeyError):
-    GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY_HERE' # !!! DÁN API KEY CỦA BẠN VÀO ĐÂY
+    GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU' # !!! DÁN API KEY CỦA BẠN VÀO ĐÂY
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
 # !!! THAY ĐỔI QUAN TRỌNG: Tách ID của file ra riêng
 GOOGLE_DRIVE_FILE_ID = "1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG"
-DB_PATH = 'yhct_chroma_db' # Sửa lại tên DB cho đúng
-COLLECTION_NAME = "yhct_documents" # Sửa lại tên Collection cho đúng
+DB_PATH = 'chroma_db' # Sửa lại tên DB cho đúng
+COLLECTION_NAME = "documents" # Sửa lại tên Collection cho đúng
 
 # --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
 USD_TO_VND_RATE = 25500
