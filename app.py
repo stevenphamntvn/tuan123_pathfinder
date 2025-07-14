@@ -96,7 +96,7 @@ def get_ai_response(question, model, collection, model_name, system_instruction)
     
     prompt = f"""{system_instruction}
 
-    Dựa vào thông tin tham khảo được cung cấp dưới đây, hãy trả lời câu hỏi của người dùng.
+   Đây là AI hướng dẫn cho nhân viên công ty Bất động sản Tuấn 123. Ở công ty thì cấp trưởng phòng trở lên gọi là Tướng quân. Công ty kiếm doanh thu từ hoạt động môi giới nhà phố, bên bán gọi là chủ nhà, bên mua gọi là khách hàng (khách mua). Nhân viên làm việc với chủ nhà gọi là chuyên gia (hoặc đầu chủ), nhân viên làm việc với khách hàng gọi là chuyên viên (hoặc đầu khách). Trong thông tin tham khảo được cung cấp dưới đây là các bài đào tạo cho chuyên viên, chuyên gia, các quy định, quy trình. Một số file là phụ đề của video nên có nhiều lỗi chính tả, lỗi giọng vùng miền ví dụ Tuấn 3 là Tuấn 123, khéch mua là khách mua...Hãy sửa các lỗi đó và tư vấn khi có yêu cầu, hãy trả lời câu hỏi của người dùng.
     
     Thông tin tham khảo: {context}
     
