@@ -1,8 +1,7 @@
 # file: app.py
-# v2.3: Chuyển sang dùng Dropbox để tải CSDL ổn định hơn
+# v2.4: Sửa lỗi chromadb.errors.InvalidArgumentError
 
 # --- PHẦN SỬA LỖI QUAN TRỌNG CHO STREAMLIT CLOUD ---
-# Ba dòng này phải nằm ở ngay đầu file
 __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
@@ -24,21 +23,19 @@ st.set_page_config(
     layout="wide"
 )
 
-# Sử dụng st.secrets để bảo mật API key khi triển khai online
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except (FileNotFoundError, KeyError):
-    GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU' # !!! DÁN API KEY CỦA BẠN VÀO ĐÂY
+    GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU'
 
-# --- CẤU HÌNH TRIỂN KHAI ONLINE ---
-# !!! THAY ĐỔI: Sử dụng link tải trực tiếp từ Dropbox ---
-DB_ZIP_URL = "https://www.dropbox.com/scl/fi/kzrz3y76uvhwlgdg9qhl7/chroma_db.zip?rlkey=h4bfzcx1opsts5vf34a4k23xm&st=ru7367m1&dl=1"
+# Cấu hình tải CSDL từ Dropbox/GitHub
+DB_ZIP_URL = "https://www.dropbox.com/scl/fi/kzrz3y76uvhwlgdg9qhl7/chroma_db.zip?rlkey=h4bfzcx1opsts5vf34a4k23xm&st=ru7367m1&dl=1" # !!! DÁN LINK TẢI TRỰC TIẾP CỦA BẠN VÀO ĐÂY
 
-# --- Tên CSDL và Collection đã được chuẩn hóa ---
 DB_PATH = "chroma_db"
 COLLECTION_NAME = "collection"
+EMBEDDING_MODEL = "models/text-embedding-004" # Phải giống với file index_data
 
-# --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
+# Bảng giá
 USD_TO_VND_RATE = 25500
 MODEL_PRICING = {
     "gemini-1.5-pro-latest": {"input": 3.50, "output": 10.50},
@@ -49,28 +46,23 @@ MODEL_PRICING = {
 
 @st.cache_resource
 def setup_database():
-    """Tải và giải nén CSDL từ URL nếu chưa có. Đã cập nhật cho Dropbox."""
     if not os.path.exists(DB_PATH):
-        st.info(f"Không tìm thấy CSDL tại '{DB_PATH}'. Bắt đầu tải từ Dropbox...")
-        
+        st.info(f"Bắt đầu tải CSDL từ link đã cung cấp...")
         try:
-            # Logic tải trực tiếp từ Dropbox đơn giản hơn nhiều
             response = requests.get(DB_ZIP_URL, stream=True)
-
             if response.status_code == 200:
-                with st.spinner("Đang tải file CSDL... (có thể mất vài phút)"):
+                with st.spinner("Đang tải file CSDL..."):
                     zip_file = BytesIO(response.content)
                 with st.spinner("Đang giải nén CSDL..."):
                     with zipfile.ZipFile(zip_file, 'r') as z:
                         z.extractall('.')
-                st.success("Tải và giải nén CSDL thành công!")
+                st.success("Tải và giải nén thành công!")
                 time.sleep(2)
             else:
-                st.error(f"Lỗi tải file: Status code {response.status_code}. Hãy kiểm tra lại đường dẫn URL Dropbox.")
+                st.error(f"Lỗi tải file: Status code {response.status_code}.")
                 return None, None
-
         except Exception as e:
-            st.error(f"Lỗi trong quá trình tải hoặc giải nén: {e}")
+            st.error(f"Lỗi tải hoặc giải nén: {e}")
             return None, None
     
     try:
@@ -80,27 +72,47 @@ def setup_database():
         st.success("Kết nối CSDL thành công!")
         return client, collection
     except Exception as e:
-        st.error(f"Lỗi kết nối tới ChromaDB tại '{DB_PATH}': {e}")
+        st.error(f"Lỗi kết nối tới ChromaDB: {e}")
         return None, None
 
 def configure_ai():
-    """Cấu hình API key cho Google AI."""
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
     except Exception as e:
-        st.error(f"Lỗi cấu hình Google Generative AI: {e}")
+        st.error(f"Lỗi cấu hình Google AI: {e}")
 
 # --- CÁC HÀM XỬ LÝ LÕI ---
 
+# --- HÀM ĐÃ ĐƯỢC NÂNG CẤP ---
 def get_relevant_context(query, collection, n_results=5):
-    if collection is None: return []
-    results = collection.query(query_texts=[query], n_results=n_results)
-    return results['documents'][0] if results['documents'] else []
+    """
+    Tạo embedding cho câu hỏi và dùng nó để truy vấn CSDL.
+    """
+    if collection is None:
+        return []
+    
+    # 1. Mã hóa câu hỏi của người dùng thành vector
+    query_embedding = genai.embed_content(
+        model=EMBEDDING_MODEL,
+        content=query,
+        task_type="RETRIEVAL_QUERY" # Task type dành cho việc truy vấn
+    )["embedding"]
+
+    # 2. Dùng vector câu hỏi để tìm kiếm trong CSDL
+    results = collection.query(
+        query_embeddings=[query_embedding], # Sử dụng query_embeddings thay vì query_texts
+        n_results=n_results
+    )
+    return results['documents'][0] if results and results['documents'] else []
 
 def get_ai_response(query, model_name, collection, system_instruction):
+    """Tạo câu trả lời từ AI."""
     relevant_docs = get_relevant_context(query, collection)
+    if not relevant_docs:
+        return "Xin lỗi, tôi không tìm thấy thông tin nào liên quan đến câu hỏi của bạn trong cơ sở tri thức.", None
+        
     context_str = "\n---\n".join(relevant_docs)
-    prompt = f"""{system_instruction}\n\nDựa vào các thông tin, quy định, và kiến thức được cung cấp dưới đây để trả lời câu hỏi của người dùng.\n\n---\n{context_str}\n---\n\nCâu hỏi: {query}"""
+    prompt = f"""{system_instruction}\n\nDựa vào các thông tin, quy định, và kiến thức được cung cấp dưới đây để trả lời câu hỏi của người dùng.\n\n---NGỮ CẢNH---\n{context_str}\n---HẾT NGỮ CẢNH---\n\nCâu hỏi: {query}"""
     
     try:
         model = genai.GenerativeModel(model_name)
