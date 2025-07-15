@@ -32,7 +32,7 @@ except (FileNotFoundError, KeyError):
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
 # !!! THAY ĐỔI QUAN TRỌNG: Tách ID của file ra riêng
-GOOGLE_DRIVE_FILE_ID = "YOUR_DRIVE_FILE_ID" #!!! THAY ID FILE ZIP MỚI CỦA BẠN
+GOOGLE_DRIVE_FILE_ID = "1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG" #!!! THAY ID FILE ZIP MỚI CỦA BẠN
 
 # --- ĐÃ CHUẨN HÓA ---
 DB_PATH = "chroma_db"
