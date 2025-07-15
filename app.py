@@ -32,7 +32,7 @@ except (FileNotFoundError, KeyError):
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
 # !!! THAY ĐỔI: Sử dụng link tải trực tiếp từ Dropbox ---
-DB_ZIP_URL = "https://www.dropbox.com/scl/fi/tovdd9vm8q56eggsjy0gg/chroma_db.zip?rlkey=vmfwxnvzid0m9kpp8boum69f1&st=ygfhuhe2&dl=1"
+DB_ZIP_URL = "https://www.dropbox.com/scl/fi/kzrz3y76uvhwlgdg9qhl7/chroma_db.zip?rlkey=h4bfzcx1opsts5vf34a4k23xm&st=ru7367m1&dl=1"
 
 # --- Tên CSDL và Collection đã được chuẩn hóa ---
 DB_PATH = "chroma_db"
