@@ -137,4 +137,44 @@ configure_ai()
 client, collection = setup_database()
 
 st.title(" Pathfinder - Trợ lý AI Tuấn 123 🤖")
-st.caption("Trợ lý được xây dựng dựa trên kho
+st.caption("Trợ lý được xây dựng dựa trên kho tri thức nội bộ của công ty.")
+
+if "messages" not in st.session_state: st.session_state.messages = []
+if "total_session_cost_vnd" not in st.session_state: st.session_state.total_session_cost_vnd = 0.0
+
+with st.sidebar:
+    st.header("Cài đặt")
+    model_name_map = {"Flash (Nhanh & Rẻ)": "gemini-1.5-flash-latest", "Pro (Mạnh hơn)": "gemini-1.5-pro-latest"}
+    selected_model_display = st.selectbox("Chọn mô hình AI:", options=list(model_name_map.keys()))
+    selected_model_name = model_name_map[selected_model_display]
+    system_instruction = st.text_area("Vai trò của AI:", "Bạn là một Trợ lý AI am hiểu sâu sắc về các quy trình, quy định và văn hóa của công ty bất động sản Tuấn 123. Nhiệm vụ của bạn là cung cấp câu trả lời chính xác, chi tiết và chuyên nghiệp cho các nhân viên dựa trên kho tri thức được cung cấp.", height=200)
+    if st.button("Xóa lịch sử trò chuyện"):
+        st.session_state.messages = []
+        st.session_state.total_session_cost_vnd = 0.0
+        st.rerun()
+    st.divider()
+    st.markdown("**Tổng chi phí phiên này:**")
+    st.markdown(f"### {st.session_state.total_session_cost_vnd:,.0f} VNĐ")
+
+if collection is not None:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"], unsafe_allow_html=True)
+
+    if prompt := st.chat_input("Nhập câu hỏi của bạn về quy trình, nghiệp vụ..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner(f"Pathfinder ({selected_model_display}) đang suy nghĩ..."):
+                response_text, usage_info = get_ai_response(prompt, selected_model_name, collection, system_instruction)
+                full_response_to_display = response_text
+                if usage_info:
+                    st.session_state.total_session_cost_vnd += usage_info['cost_vnd']
+                    usage_html = f"""<br><details style="font-size: 0.8em; color: grey;"><summary>Chi tiết</summary><p style="margin: 0; padding-left: 1em;">- Model: {usage_info['model']}<br>- Chi phí: {usage_info['cost_vnd']:,.0f} VNĐ<br>- Tokens: {usage_info['total_tokens']}</p></details>"""
+                    full_response_to_display += usage_html
+                st.markdown(full_response_to_display, unsafe_allow_html=True)
+        st.session_state.messages.append({"role": "assistant", "content": full_response_to_display})
+        st.rerun()
+else:
+    st.warning("CSDL không khả dụng. Vui lòng kiểm tra lại cấu hình.")
