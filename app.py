@@ -1,5 +1,5 @@
 # file: app.py
-# Đã chuẩn hóa tên DB_PATH và COLLECTION_NAME
+# v2.3: Chuyển sang dùng Dropbox để tải CSDL ổn định hơn
 
 # --- PHẦN SỬA LỖI QUAN TRỌNG CHO STREAMLIT CLOUD ---
 # Ba dòng này phải nằm ở ngay đầu file
@@ -31,13 +31,12 @@ except (FileNotFoundError, KeyError):
     GOOGLE_API_KEY = 'AIzaSyBOAgpJI1voNNxeOC6sS7y01EJRXWSK0YU' # !!! DÁN API KEY CỦA BẠN VÀO ĐÂY
 
 # --- CẤU HÌNH TRIỂN KHAI ONLINE ---
-# !!! THAY ĐỔI QUAN TRỌNG: Tách ID của file ra riêng
-GOOGLE_DRIVE_FILE_ID = "1WpTztD-D21zN5fyXxtS7QPz5kFxJ9AIG" #!!! THAY ID FILE ZIP MỚI CỦA BẠN
+# !!! THAY ĐỔI: Sử dụng link tải trực tiếp từ Dropbox ---
+DB_ZIP_URL = "https://www.dropbox.com/scl/fi/tovdd9vm8q56eggsjy0gg/chroma_db.zip?rlkey=vmfwxnvzid0m9kpp8boum69f1&st=ygfhuhe2&dl=1"
 
-# --- ĐÃ CHUẨN HÓA ---
+# --- Tên CSDL và Collection đã được chuẩn hóa ---
 DB_PATH = "chroma_db"
 COLLECTION_NAME = "collection"
-# --------------------
 
 # --- BẢNG GIÁ VÀ LỰA CHỌN MÔ HÌNH ---
 USD_TO_VND_RATE = 25500
@@ -50,27 +49,16 @@ MODEL_PRICING = {
 
 @st.cache_resource
 def setup_database():
-    """Tải và giải nén CSDL từ URL nếu chưa có. Đã sửa lỗi 403."""
+    """Tải và giải nén CSDL từ URL nếu chưa có. Đã cập nhật cho Dropbox."""
     if not os.path.exists(DB_PATH):
-        st.info(f"Không tìm thấy CSDL tại '{DB_PATH}'. Bắt đầu tải từ Google Drive...")
+        st.info(f"Không tìm thấy CSDL tại '{DB_PATH}'. Bắt đầu tải từ Dropbox...")
         
         try:
-            url = f'https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}'
-            session = requests.Session()
-            response = session.get(url, stream=True)
-            
-            token = None
-            for key, value in response.cookies.items():
-                if key.startswith('download_warning'):
-                    token = value
-                    break
-            
-            if token:
-                params = {'id': GOOGLE_DRIVE_FILE_ID, 'confirm': token}
-                response = session.get(url, params=params, stream=True)
+            # Logic tải trực tiếp từ Dropbox đơn giản hơn nhiều
+            response = requests.get(DB_ZIP_URL, stream=True)
 
             if response.status_code == 200:
-                with st.spinner("Đang tải file CSDL..."):
+                with st.spinner("Đang tải file CSDL... (có thể mất vài phút)"):
                     zip_file = BytesIO(response.content)
                 with st.spinner("Đang giải nén CSDL..."):
                     with zipfile.ZipFile(zip_file, 'r') as z:
@@ -78,7 +66,7 @@ def setup_database():
                 st.success("Tải và giải nén CSDL thành công!")
                 time.sleep(2)
             else:
-                st.error(f"Lỗi tải file: Status code {response.status_code}. Hãy kiểm tra lại ID file và đảm bảo file được chia sẻ công khai.")
+                st.error(f"Lỗi tải file: Status code {response.status_code}. Hãy kiểm tra lại đường dẫn URL Dropbox.")
                 return None, None
 
         except Exception as e:
